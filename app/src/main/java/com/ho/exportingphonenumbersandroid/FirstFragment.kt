@@ -30,21 +30,17 @@ import java.util.Locale
  */
 class FirstFragment : Fragment() {
     private val CONTACTS_PERMISSION_CODE = 100
-    // ViewModel reference
     private lateinit var contactsViewModel: ContactsViewModel
-
     private lateinit var contactsAdapter: ContactsAdapter
     private lateinit var contactsRecyclerView: RecyclerView
-    private val contactsList = mutableListOf<ContactItemModel>()
 
-    // Using Fragment view reference with nullable type
     private var _rootView: View? = null
     private val rootView get() = _rootView!!
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        // Inflate the layout for this fragment
         _rootView = inflater.inflate(R.layout.fragment_first, container, false)
 
         // Initialize ViewModel
@@ -62,9 +58,9 @@ class FirstFragment : Fragment() {
             contactsRecyclerView.adapter = contactsAdapter
         })
 
-        // Load contacts
+        // Load contacts if permission is granted
         if (hasContactsPermission()) {
-            loadContacts()
+            contactsViewModel.loadContacts(requireContext())
         } else {
             requestContactsPermission()
         }
@@ -78,35 +74,6 @@ class FirstFragment : Fragment() {
         return rootView
     }
 
-     fun onCreateView۱(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
-        // Inflate the layout for this fragment
-        _rootView = inflater.inflate(R.layout.fragment_first, container, false)
-
-        // Initialize RecyclerView
-        contactsRecyclerView = rootView.findViewById(R.id.contactsRecyclerView)
-        contactsRecyclerView.layoutManager = LinearLayoutManager(context)
-
-        // Load contacts
-        // Check and request contact permissions before loading contacts
-        if (hasContactsPermission()) {
-            loadContacts()
-        } else {
-            requestContactsPermission()
-        }
-
-
-        // Set up the export button
-        val exportButton: Button = rootView.findViewById(R.id.exportButton)
-        exportButton.setOnClickListener {
-            exportSelectedContacts()
-        }
-
-        return rootView
-    }
-    // Function to check if the READ_CONTACTS permission is granted
     private fun hasContactsPermission(): Boolean {
         return ContextCompat.checkSelfPermission(
             requireContext(),
@@ -114,12 +81,10 @@ class FirstFragment : Fragment() {
         ) == PackageManager.PERMISSION_GRANTED
     }
 
-    // Function to request the READ_CONTACTS permission
     private fun requestContactsPermission() {
         requestPermissions(arrayOf(android.Manifest.permission.READ_CONTACTS), CONTACTS_PERMISSION_CODE)
     }
 
-    // Handle the result of the permission request
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
@@ -129,7 +94,7 @@ class FirstFragment : Fragment() {
         if (requestCode == CONTACTS_PERMISSION_CODE) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 // Permission granted, load contacts
-                loadContacts()
+                contactsViewModel.loadContacts(requireContext())
             } else {
                 // Permission denied, show a message to the user
                 Toast.makeText(requireContext(), "Permission denied to read contacts", Toast.LENGTH_SHORT).show()
@@ -137,55 +102,8 @@ class FirstFragment : Fragment() {
         }
     }
 
-    override fun onDestroyView() {
-        super.onDestroyView()
-        _rootView = null // Avoid memory leaks
-    }
-
-    private fun loadContacts() {
-        val contactsCursor = requireContext().contentResolver.query(
-            ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-            arrayOf(
-                ContactsContract.CommonDataKinds.Phone.CONTACT_ID,
-                ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
-                ContactsContract.CommonDataKinds.Phone.NUMBER,
-                ContactsContract.CommonDataKinds.Phone.PHOTO_URI
-            ),
-            null,
-            null,
-            ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " ASC"
-        )
-
-        contactsCursor?.let {
-            val idIndex = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.CONTACT_ID)
-            val nameIndex = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
-            val numberIndex = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
-            val photoUriIndex = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.PHOTO_URI)
-
-            while (it.moveToNext()) {
-                val id = it.getString(idIndex)
-                val name = it.getString(nameIndex)
-                val number = it.getString(numberIndex)
-                val photoUri = it.getString(photoUriIndex)
-
-                // Only add contacts with a phone number
-                if (!number.isNullOrEmpty()) {
-                    contactsList.add(ContactItemModel(id, name, number))
-                }
-            }
-            it.close()
-            // Update the ViewModel with the loaded contacts
-            contactsViewModel.loadContacts(contactsList)
-//            contactsAdapter = ContactsAdapter(contactsList)
-//            contactsRecyclerView.adapter = contactsAdapter
-        }
-    }
-
-
-
-
     private fun exportSelectedContacts() {
-        val selectedContacts = contactsList.filter { it.isSelected }.map { it.phoneNumber }
+        val selectedContacts = contactsViewModel.contacts.value?.filter { it.isSelected }?.map { it.phoneNumber }
 
         // Get the current date and format it
         val currentDate = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.getDefault()).format(Date())
@@ -194,7 +112,7 @@ class FirstFragment : Fragment() {
         val outputFile = File(requireContext().getExternalFilesDir(null), "contacts_$currentDate.txt")
 
         outputFile.printWriter().use { out ->
-            selectedContacts.forEach { out.println(it) }
+            selectedContacts?.forEach { out.println(it) }
         }
 
         // Share the file
@@ -207,5 +125,11 @@ class FirstFragment : Fragment() {
 
         startActivity(Intent.createChooser(shareIntent, "Share contacts via"))
     }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _rootView = null // Avoid memory leaks
+    }
 }
+
 
