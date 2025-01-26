@@ -75,4 +75,8 @@ class ContactsViewModel : ViewModel() {
             }
         }
     }
+
+    fun getSelectedItems(): List<ContactItemModel>? {
+        return _contacts.value?.filter { it.isSelected }
+    }
 }

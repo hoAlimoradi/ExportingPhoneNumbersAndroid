@@ -14,14 +14,13 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.ho.exportingphonenumbersandroid.databinding.FragmentFirstBinding
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/**
- * A simple [Fragment] subclass as the default destination in the navigation.
- */
 class FirstFragment : Fragment() {
     private lateinit var contactsViewModel: ContactsViewModel
     private lateinit var contactsAdapter: ContactsAdapter
@@ -61,8 +60,12 @@ class FirstFragment : Fragment() {
             requestContactsPermission()
         }
 
-        binding.exportButton.setOnClickListener {
-            exportSelectedContacts()
+        binding.exportAsTextButton.setOnClickListener {
+            exportSelectedContactsAsText()
+        }
+
+        binding.exportAsJsonButton.setOnClickListener {
+            exportSelectedContactsAsJson()
         }
     }
 
@@ -101,27 +104,41 @@ class FirstFragment : Fragment() {
         }
     }
 
-    private fun exportSelectedContacts() {
-        val selectedContacts =
-            contactsViewModel.contacts.value?.filter { it.isSelected }?.map { it.phoneNumber }
+    private fun exportSelectedContactsAsText() {
+        val selectedContacts = contactsViewModel.getSelectedItems()
+            ?.map { it.phoneNumber }
+            ?: return
 
-        // Get the current date and format it
-        val currentDate =
-            SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.getDefault()).format(Date())
-
-        // Create the file with the current date in the filename
-        val outputFile =
-            File(requireContext().getExternalFilesDir(null), "contacts_$currentDate.txt")
+        val currentDate = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.getDefault())
+            .format(Date())
+        val directory = requireContext().getExternalFilesDir(null)
+        val outputFile = File(directory, "contacts_$currentDate.txt")
 
         outputFile.printWriter().use { out ->
-            selectedContacts?.forEach { out.println(it) }
+            selectedContacts.forEach { out.println(it) }
         }
+        shareContacts(outputFile)
+    }
 
-        // Share the file
+    private fun exportSelectedContactsAsJson() {
+        val selectedContacts = contactsViewModel.getSelectedItems() ?: return
+        val json = Json.encodeToString(selectedContacts)
+        val currentDate = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.getDefault())
+            .format(Date())
+        val directory = requireContext().getExternalFilesDir(null)
+        val outputFile = File(directory, "contacts_$currentDate.txt")
+
+        outputFile.printWriter().use { out ->
+            out.println(json)
+        }
+        shareContacts(outputFile)
+    }
+
+    private fun shareContacts(file: File) {
         val uri = FileProvider.getUriForFile(
             requireContext(),
             "${requireContext().packageName}.provider",
-            outputFile
+            file
         )
         val shareIntent = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"

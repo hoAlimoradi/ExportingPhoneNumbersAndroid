@@ -1,8 +1,16 @@
 package com.ho.exportingphonenumbersandroid.data
 
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
+
+@Serializable
 data class ContactItemModel(
-    val id: String,
+    @Transient
+    val id: String = "",
+    @SerialName("name")
     val displayName: String,
     val phoneNumber: String,
-    var isSelected: Boolean = false
+    @Transient
+    val isSelected: Boolean = false
 )
