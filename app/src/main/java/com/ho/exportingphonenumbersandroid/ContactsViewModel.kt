@@ -8,26 +8,28 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ho.exportingphonenumbersandroid.data.ContactItemModel
 import kotlinx.coroutines.launch
+
 class ContactsViewModel : ViewModel() {
-    val contacts = MutableLiveData<List<ContactItemModel>>() // فقط یک MutableLiveData داریم
+
+    private val _contacts = MutableLiveData<List<ContactItemModel>>()
+    val contacts: LiveData<List<ContactItemModel>> get() = _contacts
 
     var isFirst = true
-    // بارگذاری کانتکت‌ها از ContentProvider
+
     fun loadContacts(context: Context) {
         viewModelScope.launch {
             //shouldReload
-            if (isFirst && contacts.value.isNullOrEmpty()) {
+            if (isFirst && _contacts.value.isNullOrEmpty()) {
                 val contactList = getContactsFromContentProvider(context)
-                contacts.value = contactList
+                _contacts.value = contactList
                 isFirst = false
             } else {
                 val existingContacts = contacts.value ?: emptyList()
-                contacts.value = existingContacts
+                _contacts.value = existingContacts
             }
         }
     }
 
-    // تابع برای دریافت داده‌ها از ContentProvider
     private fun getContactsFromContentProvider(context: Context): List<ContactItemModel> {
         val contactsList = mutableListOf<ContactItemModel>()
         val contactsCursor = context.contentResolver.query(
@@ -52,7 +54,7 @@ class ContactsViewModel : ViewModel() {
             while (it.moveToNext()) {
                 val id = it.getString(idIndex)
                 val name = it.getString(nameIndex)
-                val number = it.getString(numberIndex)
+                val number = it.getString(numberIndex)?.replace(" ", "")
                 val photoUri = it.getString(photoUriIndex)
 
                 if (!number.isNullOrEmpty()) {
@@ -61,14 +63,16 @@ class ContactsViewModel : ViewModel() {
             }
             it.close()
         }
-        return contactsList
+        return contactsList.distinctBy { it.id }
     }
 
-    // تغییر وضعیت انتخاب کانتکت
     fun toggleSelection(contactId: String) {
-        // تغییر داده‌ها در همان لیست که در MutableLiveData نگهداری می‌شود
-        contacts.value = contacts.value?.map { contact ->
-            if (contact.id == contactId) contact.copy(isSelected = !contact.isSelected) else contact
+        _contacts.value = contacts.value?.map { contact ->
+            if (contact.id == contactId) {
+                contact.copy(isSelected = !contact.isSelected)
+            } else {
+                contact
+            }
         }
     }
 }

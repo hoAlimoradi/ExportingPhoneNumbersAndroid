@@ -1,29 +1,30 @@
 package com.ho.exportingphonenumbersandroid
 
-import android.net.Uri
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.CheckBox
-import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.ho.exportingphonenumbersandroid.data.ContactItemModel
 
-class ContactsAdapter(private val contacts: List<ContactItemModel>, private val onSelectionChanged: (String) -> Unit) :
-    RecyclerView.Adapter<ContactsAdapter.ContactViewHolder>() {
+class ContactsAdapter(
+    private val onSelectionChanged: (String) -> Unit
+) : RecyclerView.Adapter<ContactsAdapter.ContactViewHolder>() {
+
+    private val contacts: MutableList<ContactItemModel> = mutableListOf()
 
     inner class ContactViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        val nameTextView: TextView = itemView.findViewById(R.id.nameTextView)
-        val phoneTextView: TextView = itemView.findViewById(R.id.phoneTextView)
-        val checkBox: CheckBox = itemView.findViewById(R.id.contactCheckBox)
+        private val nameTextView: TextView = itemView.findViewById(R.id.nameTextView)
+        private val phoneTextView: TextView = itemView.findViewById(R.id.phoneTextView)
+        private val checkBox: CheckBox = itemView.findViewById(R.id.contactCheckBox)
 
         fun bind(contact: ContactItemModel) {
             nameTextView.text = contact.displayName
 
             checkBox.isChecked = contact.isSelected
             phoneTextView.text = contact.phoneNumber
-            checkBox.setOnCheckedChangeListener { _, isChecked ->
+            checkBox.setOnClickListener {
                 onSelectionChanged(contact.id)
             }
         }
@@ -37,6 +38,12 @@ class ContactsAdapter(private val contacts: List<ContactItemModel>, private val 
 
     override fun onBindViewHolder(holder: ContactViewHolder, position: Int) {
         holder.bind(contacts[position])
+    }
+
+    fun updateList(items: List<ContactItemModel>) {
+        contacts.clear()
+        contacts.addAll(items)
+        notifyDataSetChanged()
     }
 
     override fun getItemCount(): Int = contacts.size
